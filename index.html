@@ -205,7 +205,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
   ac(f.modelo,'modelo',next);ac(f.cor,'cor',next);
   kp.onchange=()=>{keepOn=kp.checked;kp.dataset.u=1};
   f.onkeydown=e=>{if(e.key!=='Enter')return;const t=e.target,mod=e.ctrlKey||e.metaKey;if(!mod&&!ins.includes(t))return;
-   e.preventDefault();if(mod||t===ins[ins.length-1])f.requestSubmit();else next(t)};
+   e.preventDefault();if(mod||t===f.chassi||t===ins[ins.length-1])f.requestSubmit();else next(t)};
   hint();(keepOn&&!m?f.chassi:f.modelo).focus();
   f.onsubmit=async e=>{e.preventDefault();if(fs.disabled)return;
    const d={modelo:f.modelo.value.trim(),cor:f.cor.value.trim(),chassi:f.chassi.value.trim()},code=m?'':f.bateria.value.trim().toUpperCase(),ce=vChassi(d.chassi);
@@ -213,7 +213,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
    if(er){show(er);(!d.modelo?f.modelo:!d.cor?f.cor:ce?f.chassi:f.bateria).focus();return}
    if(m){fs.disabled=true;fs.textContent='Salvando...';try{const r=await edit(m.id,d);upsert(r,false);closeModal();toast('Moto atualizada com sucesso.')}catch(x){show(fail(x));fs.disabled=false;fs.textContent='Salvar alterações'}return}
    /* fluxo contínuo: limpa e foca já; o salvamento segue em segundo plano */
-   const sig=(d.modelo+'|'+d.cor).toLowerCase();if(sig===last&&!kp.dataset.u)keepOn=kp.checked=true;last=sig;
+   const sig=(d.modelo+'|'+d.cor).toLowerCase();
    fe.hidden=true;clearTimeout(okT);const o=$('#ok');o.textContent='✓ Moto adicionada';okT=setTimeout(()=>{o.textContent=''},1500);
    if(!keepOn)f.modelo.value=f.cor.value='';f.chassi.value=f.bateria.value='';hint();(keepOn?f.chassi:f.modelo).focus();
    try{let r=await add(d);upsert(r,false);
