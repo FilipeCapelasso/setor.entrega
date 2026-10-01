@@ -98,15 +98,12 @@ addEventListener('hashchange',()=>location.reload());
 
 /* ---------- validação ---------- */
 const vChassi=v=>!v?'Informe os 6 últimos dígitos do chassi.':/\D/.test(v)?'O chassi deve conter somente números (sem espaços).':v.length>6?MSG.over:v.length<6?'O chassi precisa ter exatamente 6 dígitos.':null;
-const vBat=v=>{v=v.trim().toUpperCase();return !v?'Informe o código da bateria.':!/^[A-Z0-9][A-Z0-9\-_/. ]{2,29}$/.test(v)?'Código inválido. Use letras, números e hífen (3 a 30 caracteres).':null};
 function fail(e){const t=((e&&e.message)||'')+' '+((e&&e.details)||''),c=e&&e.code;
  if(t.includes('BATERIA_DUPLICADA')||(c==='23505'&&t.includes('codigo_bateria')))return 'Código de bateria já utilizado. Esse código já está associado a outra moto.';
  if(c==='23505'&&t.includes('chassi'))return 'Chassi já cadastrado.';
- if(t.includes('BATERIA_VAZIA'))return 'Informe o código da bateria.';
- if(t.includes('BATERIA_INVALIDA'))return 'Código inválido. Use letras, números e hífen (3 a 30 caracteres).';
  if(t.includes('MOTO_INEXISTENTE'))return 'Esta moto não existe mais. Ela pode ter sido removida pela entrega.';
  if(t.includes('HORARIO_CHEIO'))return 'Esse horário já tem 2 motos (outro computador pode ter ocupado a vaga). Escolha outro horário.';
- if(c==='PGRST204'||(t.includes('horario')&&t.includes('column')))return 'Falta criar a coluna "horario" no Supabase. Rode o arquivo datas.sql.';
+ if(c==='PGRST204'||(t.includes('horario')&&t.includes('column')))return 'Falta criar a coluna "horario" no Supabase. Rode o arquivo supabase-completo.sql.';
  return MSG.gen}
 
 /* ---------- UI comum ---------- */
@@ -204,7 +201,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
   if(!n&&!q){$('#tbl').innerHTML='<div class="empty"><p><b>Nenhuma moto neste dia.</b></p><p class="mut">Pressione Ctrl+Enter para começar.</p></div>';return}
   if(!rows.length){$('#tbl').innerHTML='<p class="mid">Nenhuma moto encontrada com esses filtros.</p>';return}
   const pos=new Map(srt.map((m,i)=>[m.id,i+1])),vis=rows.length>MAXR?rows.slice(-MAXR):rows;
-  $('#tbl').innerHTML='<div class="tw"><table><thead><tr><th>#</th><th>Horário</th><th>Modelo</th><th>Cor</th><th>Chassi</th><th>Código da bateria</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead><tbody>'
+  $('#tbl').innerHTML='<div class="tw"><table><thead><tr><th>#</th><th>Horário</th><th>Modelo</th><th>Cor</th><th>Chassi</th><th>Bateria (montagem)</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead><tbody>'
   +vis.map(m=>{const d=m.status==='ativada',l=esc(m.modelo+' chassi '+m.chassi);
    return `<tr class="${d?'d':''}"><td>${String(pos.get(m.id)).padStart(2,'0')}</td><td class="mono"><b>${q&&m.data!==day&&m.data?sh(m.data)+' · ':''}${m.horario||'—'}</b></td><td><b>${esc(m.modelo)}</b></td><td>${esc(m.cor)}</td><td class="mono">${esc(m.chassi)}</td><td>${bat(m.codigo_bateria,1)}</td><td><span class="bd ${d?'d':''}">${d?'🟢 Ativada':'🟡 Aguardando bateria'}</span></td><td class="ac"><button class="ib" data-a="edit" data-id="${m.id}" title="Editar" aria-label="Editar ${l}">✏️</button><button class="ib" data-a="del" data-id="${m.id}" title="Excluir" aria-label="Excluir ${l}">🗑️</button></td></tr>`}).join('')+'</tbody></table></div>'
   +(rows.length>MAXR?`<p class="mut sm" style="margin-top:8px">Mostrando as ${MAXR} mais recentes de ${rows.length}. Use a busca (Ctrl K) para encontrar as demais.</p>`:'')};
@@ -225,20 +222,18 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
   openModal(`<div class="row" style="flex-wrap:nowrap"><h2 style="margin:0">${m?'Editar moto':'🏍️ Adicionar moto'}</h2><button type="button" class="ib" data-a="close" title="Fechar (Esc)" aria-label="Fechar">✕</button></div>${m?'':`<p class="mdb"><b id="md"></b> <span class="mut sm">· Alt+← → muda o dia</span></p>`}<form id="f" novalidate><div class="fl hr"><label for="fo">Horário <span class="hn" id="hh"></span></label><input id="fo" class="inp mono" name="horario" value="${esc(m?m.horario:(lastH&&occ(lastH)<2?lastH:nextFree(lastH||SL[0])))}" inputmode="numeric" maxlength="5" placeholder="10:30" autocomplete="off"></div><div class="g2">
 <div class="fl"><label for="fm">Modelo</label><input id="fm" class="inp" name="modelo" value="${v('modelo')}" placeholder="Ex.: Fan 160" autocomplete="off"><div class="sg" hidden></div></div>
 <div class="fl"><label for="fc">Cor</label><input id="fc" class="inp" name="cor" value="${v('cor')}" placeholder="Ex.: Vermelha" autocomplete="off"><div class="sg" hidden></div></div>
-<div class="fl"><label for="fh">Chassi · 6 últimos dígitos <span class="hn" id="hc"></span></label><input id="fh" class="inp mono" name="chassi" value="${v('chassi')}" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="off"></div>
-<div class="fl" ${m?'hidden':''}><label for="fb">Código da bateria <span class="hn" id="hb"></span></label><input id="fb" class="inp mono up" name="bateria" placeholder="Opcional" autocomplete="off" autocapitalize="characters" spellcheck="false"></div></div>
+<div class="fl"><label for="fh">Chassi · 6 últimos dígitos <span class="hn" id="hc"></span></label><input id="fh" class="inp mono" name="chassi" value="${v('chassi')}" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="off"></div></div>
 <p id="fe" class="err" role="alert" hidden></p>
 <label class="kp" ${m?'hidden':''}><input type="checkbox" id="kp" ${keepOn?'checked':''}> Manter modelo e cor</label>
 <div class="row end"><span id="ok" class="okm" aria-live="polite"></span><button type="button" class="btn" data-a="close">Cancelar</button><button id="fs" class="btn pri">${m?'Salvar alterações':'＋ Adicionar moto'} <kbd>Ctrl+Enter</kbd></button></div></form>`);
-  const f=$('#f'),fe=$('#fe'),fs=$('#fs'),kp=$('#kp'),ins=[f.horario,f.modelo,f.cor,f.chassi,...(m?[]:[f.bateria])];
+  const f=$('#f'),fe=$('#fe'),fs=$('#fs'),kp=$('#kp'),ins=[f.horario,f.modelo,f.cor,f.chassi];
   const show=t=>{fe.textContent='⚠️ '+t;fe.hidden=false},next=i=>{const n=ins[ins.indexOf(i)+1];if(n){n.focus();n.select()}};
   const hErr=h=>!SL.includes(h)?'Horário inválido. Use 08:00 a 11:30 ou 14:00 a 17:30, de 30 em 30 min.':occ(h)-(m&&m.horario===h?1:0)>=2?'O horário '+h+' já tem 2 motos. Escolha outro.':null;
   const hint=()=>{const rw=f.horario.value.replace(/\D/g,''),hv=normH(f.horario.value),ho=$('#hh'),oc=occ(hv)-(m&&m.horario===hv?1:0),okh=SL.includes(hv)&&oc<2;
-   ho.textContent=rw.length<3?'':!SL.includes(hv)?'✗ inválido':oc>=2?'✗ CHEIO 2/2':'✓ '+oc+'/2';ho.className='hn'+(rw.length>=3&&okh?' g':'');const c=f.chassi.value,b=f.bateria.value.trim(),hc=$('#hc'),hb=$('#hb');hc.textContent=c?(c.length===6?'✓':c.length+'/6'):'';hc.className='hn'+(c.length===6?' g':'');
-   hb.textContent=b.length<3?'':vBat(b)?'✗ inválido':'✓ Código válido';hb.className='hn'+(b.length>=3&&!vBat(b)?' g':'')};
+   ho.textContent=rw.length<3?'':!SL.includes(hv)?'✗ inválido':oc>=2?'✗ CHEIO 2/2':'✓ '+oc+'/2';ho.className='hn'+(rw.length>=3&&okh?' g':'');const c=f.chassi.value,hc=$('#hc');hc.textContent=c?(c.length===6?'✓':c.length+'/6'):'';hc.className='hn'+(c.length===6?' g':'');};
   f.chassi.oninput=e=>{const c=f.chassi.value.replace(/\D/g,'').slice(0,6);if(c!==f.chassi.value)f.chassi.value=c;fe.hidden=true;hint();
    if(c.length===6&&e.inputType&&e.inputType.startsWith('insert'))next(f.chassi)};
-  f.bateria.oninput=()=>{fe.hidden=true;hint()};f.modelo.oninput=f.cor.oninput=()=>{fe.hidden=true};
+  f.modelo.oninput=f.cor.oninput=()=>{fe.hidden=true};
   f.horario.oninput=e=>{const d=f.horario.value.replace(/\D/g,'').slice(0,4);f.horario.value=d.length>2?d.slice(0,2)+':'+d.slice(2):d;fe.hidden=true;hint();
    if(d.length===4&&e.inputType&&e.inputType.startsWith('insert')&&!hErr(normH(d)))next(f.horario)};
   ac(f.modelo,'modelo',next);ac(f.cor,'cor',next);
@@ -250,18 +245,17 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
    e.preventDefault();if(mod||t===f.chassi||t===ins[ins.length-1])f.requestSubmit();else next(t)};
   fh=m?null:r=>{const e=$('#md');if(e)e.textContent='📅 '+lbl(day)+' · '+dtg(day);if(r)f.horario.value=nextFree(SL[0]);hint()};if(fh)fh();else hint();const fo=m?f.modelo:keepOn?f.chassi:f.horario;fo.focus();fo.select();
   f.onsubmit=async e=>{e.preventDefault();if(fs.disabled)return;
-   const d={modelo:f.modelo.value.trim(),cor:f.cor.value.trim(),chassi:f.chassi.value.trim()},code=m?'':f.bateria.value.trim().toUpperCase(),ce=vChassi(d.chassi),h=normH(f.horario.value),he=(m&&!h&&!m.horario)?null:hErr(h);
-   const er=he?he:!d.modelo?'Informe o modelo.':!d.cor?'Informe a cor.':ce||(code&&vBat(code));
-   if(er){show(er);(he?f.horario:!d.modelo?f.modelo:!d.cor?f.cor:ce?f.chassi:f.bateria).focus();return}
+   const d={modelo:f.modelo.value.trim(),cor:f.cor.value.trim(),chassi:f.chassi.value.trim()},ce=vChassi(d.chassi),h=normH(f.horario.value),he=(m&&!h&&!m.horario)?null:hErr(h);
+   const er=he?he:!d.modelo?'Informe o modelo.':!d.cor?'Informe a cor.':ce;
+   if(er){show(er);(he?f.horario:!d.modelo?f.modelo:!d.cor?f.cor:f.chassi).focus();return}
    if(m){d.horario=h||null;fs.disabled=true;fs.textContent='Salvando...';try{const r=await edit(m.id,d);upsert(r,false);closeModal();toast('Moto atualizada com sucesso.')}catch(x){show(fail(x));fs.disabled=false;fs.textContent='Salvar alterações'}return}
    /* fluxo contínuo: limpa e foca já; o salvamento segue em segundo plano */
    d.horario=h;d.data=day;const ik=day+h;inflight.set(ik,(inflight.get(ik)||0)+1);let nh=h,msg='✓ Moto adicionada';if(occ(h)>=2){nh=nextFree(h);msg=nh?'✓ '+h+' completo → '+nh:'✓ Todos os horários estão cheios'}lastH=nh;
    fe.hidden=true;clearTimeout(okT);const o=$('#ok');o.textContent=msg;okT=setTimeout(()=>{o.textContent=''},1500);
-   if(!keepOn)f.modelo.value=f.cor.value='';f.chassi.value=f.bateria.value='';f.horario.value=nh;hint();(keepOn?f.chassi:f.modelo).focus();
-   try{let r=await add(d);upsert(r,false);
-    if(code){try{r=await activate(r.id,code);upsert(r,false)}catch(y){toast('⚠️ Moto salva, mas a bateria não foi registrada',d.chassi+': '+fail(y),'er')}}}
+   if(!keepOn)f.modelo.value=f.cor.value='';f.chassi.value='';f.horario.value=nh;hint();(keepOn?f.chassi:f.modelo).focus();
+   try{const r=await add(d);upsert(r,false)}
    catch(x){toast('⚠️ Moto NÃO foi salva: '+d.chassi,fail(x),'er');
-    if($('#f')===f&&!f.chassi.value){f.modelo.value=d.modelo;f.cor.value=d.cor;f.chassi.value=d.chassi;f.bateria.value=code;f.horario.value=h;lastH=h;hint();show(fail(x));f.chassi.focus()}}finally{inflight.set(ik,Math.max(0,(inflight.get(ik)||1)-1))}}}
+    if($('#f')===f&&!f.chassi.value){f.modelo.value=d.modelo;f.cor.value=d.cor;f.chassi.value=d.chassi;f.horario.value=h;lastH=h;hint();show(fail(x));f.chassi.focus()}}finally{inflight.set(ik,Math.max(0,(inflight.get(ik)||1)-1))}}}
  connect()}
 
 /* ---------- Início / Config ---------- */
