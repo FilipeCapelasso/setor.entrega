@@ -77,7 +77,7 @@ kbd{font:500 .68rem/1 'IBM Plex Mono',monospace;padding:3px 5px;border-radius:4p
 .mdb{margin:10px 0 0}.mdb b{color:var(--info);font-size:.9rem}
 @media(max-width:560px){.wd{flex-direction:column;gap:0}}
 /* ===== MODO AMPLO: tela cheia, letras e tabela maiores ===== */
-html{font-size:19px}
+html{font-size:calc(clamp(13px,min(.99vw,1.76vh),30px)*var(--z,1))}
 .wrap{max-width:none;padding:16px clamp(16px,2.5vw,48px)}
 h1{font-size:1.9rem}.big{font-size:1.9rem;font-weight:700}
 .stats>div{padding:12px 28px}.stats b{font-size:2rem}
@@ -85,14 +85,29 @@ h1{font-size:1.9rem}.big{font-size:1.9rem;font-weight:700}
 .tabs button{height:50px;font-size:1rem;padding:0 18px}.add{height:56px;font-size:1.2rem}
 .nb,.dpb{height:54px;font-size:1.05rem}.nb[data-a=dprev],.nb[data-a=dnext]{width:56px;font-size:1.7rem}
 .wd{padding:10px}.wd b{font-size:1.4rem}.wd span{font-size:.9rem}.wd small{font-size:.9rem}
-.ag{grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px}.sl{padding:10px 4px}.sl b{font-size:1.1rem}.sl i{width:15px;height:15px}
-.tw{max-height:calc(100vh - 6rem);min-height:30rem}
+.ag{grid-template-columns:repeat(auto-fit,minmax(4.6rem,1fr));gap:.45rem}.sl{padding:10px 4px}.sl b{font-size:1.1rem}.sl i{width:15px;height:15px}
+.tw{max-height:none;min-height:0}
 table{min-width:70rem}
 th{font-size:1rem;padding:16px 22px}
 td{font-size:1.15rem;padding:16px 22px}td:first-child{border-left-width:6px}
 .bat.lg{font-size:1.6rem;border-width:3px}.bat span{padding:4px 16px}.bat i{padding:0 12px}
 .bd{font-size:1.05rem;padding:6px 16px}
 .ib{width:48px;height:48px;font-size:1.4rem}
+
+/* ===== AUTOAJUSTE: o site se encaixa na tela (sem rolar a página), em qualquer monitor ===== */
+html,body{height:100%;margin:0}body{overflow:hidden}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column}
+#app>.hd{position:static;flex:none}
+#app>main.wrap{flex:1 1 0;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column}
+#body{flex:1 0 auto;display:flex;flex-direction:column;min-height:0}
+#body>*{flex:none}
+#body>#tbl{flex:1 1 0;min-height:14rem;display:flex;flex-direction:column}
+#tbl>.tw{flex:1 1 0;min-height:0}
+#tbl>.empty,#tbl>.mid{margin:auto 0}
+@media(max-height:620px){#ag,#wk{display:none}}
+.zm{display:inline-flex;border:1px solid #B5BDB6;border-radius:8px;overflow:hidden;background:var(--card)}
+.zm button{height:2.5rem;min-width:3rem;border:0;background:none;cursor:pointer;font-weight:700;padding:0 .7rem}
+.zm button:hover{background:var(--paper)}.zm #zv{border-left:1px solid var(--line);border-right:1px solid var(--line);font-weight:600;min-width:4.2rem}
 </style>
 </head>
 <body>
@@ -111,6 +126,9 @@ const MSG={gen:'Não foi possível salvar os dados. Verifique a conexão e tente
 const saved=(()=>{try{return JSON.parse(localStorage.getItem('motos_cfg')||'{}')}catch(e){return{}}})();
 const URL_=CFG.url||saved.url,KEY=CFG.key||saved.key;
 const route=location.hash.replace(/^#\/?/,'');
+let Z=1;try{Z=parseFloat(localStorage.getItem('motos_zoom'))||1}catch(e){}
+const setZ=z=>{Z=Math.min(1.6,Math.max(.6,Math.round(z*100)/100));document.documentElement.style.setProperty('--z',Z);try{localStorage.setItem('motos_zoom',Z)}catch(e){}const e=$('#zv');if(e)e.textContent=Z===1?'Auto':Math.round(Z*100)+'%'};
+setZ(Z);
 addEventListener('hashchange',()=>location.reload());
 
 /* ---------- validação ---------- */
@@ -180,7 +198,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
  const normH=v=>{const d=v.replace(/\D/g,'').slice(0,4);return !d?'':d.length<=2?d.padStart(2,'0')+':00':d.length===3?'0'+d[0]+':'+d.slice(1):d.slice(0,2)+':'+d.slice(2)};
  const nextFree=from=>{const i=Math.max(0,SL.indexOf(from));for(let k=0;k<SL.length;k++){const h=SL[(i+k)%SL.length];if(occ(h)<2)return h}return ''};
  const H=new WeakMap(),hs=m=>{let h=H.get(m);if(h===undefined){h=(m.modelo+' '+m.cor+' '+m.chassi+' '+(m.codigo_bateria||'')+' '+(m.horario||'')).toLowerCase();H.set(m,h)}return h};
- $('#app').innerHTML=`<header class="hd"><div class="wrap row"><div><h1>Controle de Entregas</h1><p class="mut sm">Motos para saída</p></div><div class="row g"><span id="conn" class="mut sm"></span><b id="cnt" class="big" aria-live="polite"></b></div></div></header>
+ $('#app').innerHTML=`<header class="hd"><div class="wrap row"><div><h1>Controle de Entregas</h1><p class="mut sm">Motos para saída</p></div><div class="row g"><span class="zm" role="group" aria-label="Tamanho da tela"><button data-a="zout" title="Diminuir tudo" aria-label="Diminuir tudo">A−</button><button id="zv" data-a="zauto" title="Voltar ao ajuste automático">Auto</button><button data-a="zin" title="Aumentar tudo" aria-label="Aumentar tudo">A+</button></span><span id="conn" class="mut sm"></span><b id="cnt" class="big" aria-live="polite"></b></div></div></header>
 <main class="wrap"><p id="load" class="mid"></p><div id="body" hidden><section id="stats" class="stats" aria-label="Resumo"></section>
 <div class="db"><button class="nb" data-a="dprev" title="Dia anterior (Alt+←)" aria-label="Dia anterior">‹</button><button class="nb" data-a="dnext" title="Próximo dia (Alt+→)" aria-label="Próximo dia">›</button><button class="dpb" data-a="pick" title="Escolher data"><span id="dl"></span> ▾</button><input id="dt" type="date" class="dti" tabindex="-1" aria-hidden="true"><button class="nb" data-a="hoje" title="Ir para hoje (Alt+0)">📅 Hoje</button><span id="dtag" class="mut sm"></span></div><div id="wk" class="wk" aria-label="Semana"></div><div id="ag" class="ag" aria-label="Agenda de horários"></div><div class="row bar"><div class="sw"><input id="q" class="inp" type="search" placeholder="Buscar modelo, cor, chassi ou bateria" aria-label="Pesquisar" autocomplete="off"><kbd>Ctrl K</kbd></div><div id="tabs" class="tabs" role="group" aria-label="Filtrar por status"></div><span id="shown" class="mut sm" aria-live="polite"></span><button class="btn pri add" data-a="new">＋ Adicionar moto <kbd>Ctrl+Enter</kbd></button></div><div id="tbl"></div></div></main>`;
  setConn(conn);
@@ -196,7 +214,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
   else if(e.altKey&&(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.code==='Digit0')){if(!$('#modal').hidden&&!($('#f')&&fh))return;e.preventDefault();setDay(e.code==='Digit0'?today():addD(day,e.key==='ArrowLeft'?-1:1))}
   else if(e.altKey&&/^Digit[123]$/.test(e.code)){e.preventDefault();filter=['todas','pend','ativ'][e.code[5]-1];hooks.render()}
   else if(mod&&e.key==='Enter'&&$('#modal').hidden&&loaded){e.preventDefault();form()}});
- actions.f=id=>{filter=id;hooks.render()};actions.slot=id=>{hf=hf===id?'':id;hooks.render()};
+ actions.f=id=>{filter=id;hooks.render()};actions.zin=()=>setZ(Z+.05);actions.zout=()=>setZ(Z-.05);actions.zauto=()=>setZ(1);setZ(Z);actions.slot=id=>{hf=hf===id?'':id;hooks.render()};
  actions.new=()=>form();actions.edit=id=>form(motos.find(m=>m.id===id));
  actions.del=id=>{const m=motos.find(x=>x.id===id);if(!m)return;
   openModal('<h2>Remover moto</h2>'+(m.codigo_bateria?'<p class="warn">⚠️ Esta moto já possui uma bateria registrada ('+esc(m.codigo_bateria)+').<br>Tem certeza de que deseja removê-la?</p>':'')
