@@ -279,7 +279,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
    if(e.key!=='Enter')return;if(!mod&&!ins.includes(t))return;
    if(t===f.horario&&!mod){t.value=normH(t.value);hint();const x=hErr(t.value);if(x){e.preventDefault();show(x);return}}
    e.preventDefault();if(mod||t===f.chassi||t===ins[ins.length-1])f.requestSubmit();else next(t)};
-  fh=m?null:r=>{const e=$('#md');if(e)e.textContent='📅 '+lbl(day)+' · '+dtg(day);if(r)f.horario.value=nextFree(SL[0]);hint()};if(fh)fh();else hint();const fo=m?f.modelo:keepOn?f.chassi:f.horario;fo.focus();fo.select();
+  fh=m?null:r=>{const e=$('#md');if(e)e.textContent='📅 '+lbl(day)+' · '+dtg(day);if(r)f.horario.value=nextFree(SL[0]);hint()};if(fh)fh();else hint();const fo=(!m&&keepOn)?f.chassi:f.modelo;fo.focus();fo.select();
   f.onsubmit=async e=>{e.preventDefault();if(fs.disabled)return;
    const d={modelo:f.modelo.value.trim(),cor:f.cor.value.trim(),chassi:f.chassi.value.trim()},ce=vChassi(d.chassi),h=normH(f.horario.value),he=(m&&!h&&!m.horario)?null:hErr(h);
    const er=he?he:!d.modelo?'Informe o modelo.':!d.cor?'Informe a cor.':ce;
