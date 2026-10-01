@@ -47,6 +47,19 @@ h2{font-size:1.1rem;margin-bottom:8px}.card.dn .bat{margin-top:8px}
 .home a{display:block;padding:18px;border-radius:8px;font-weight:600;font-size:1.1rem;margin-top:12px;text-decoration:none;background:var(--info);color:#fff}.home a+a{background:var(--card);color:var(--ink);border:1px solid #B5BDB6}
 @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.stats>div:nth-child(3){border-left:0}.add{margin-left:0;width:100%}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+kbd{font:500 .68rem/1 'IBM Plex Mono',monospace;padding:3px 5px;border-radius:4px;background:rgba(0,0,0,.12);margin-left:6px;white-space:nowrap;font-weight:500}
+.sw{position:relative;flex:1 1 16rem;max-width:26rem}.sw .inp{margin:0;padding-right:4.5rem}.sw kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--paper);color:var(--steel)}
+.stats>div{padding:8px 16px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.stats b{font-size:1.4rem;display:inline}.stats .pb{flex:1 0 100%;margin:2px 0 0}.stats{margin:8px 0 12px}
+.add{height:46px;font-size:1rem;padding:0 18px}.add kbd{background:rgba(255,255,255,.22)}.pri kbd{background:rgba(255,255,255,.22)}
+.tw{max-height:calc(100vh - 15rem)}table{min-width:44rem}td{padding:8px 16px}th{padding:10px 16px}tbody tr:hover{background:#F1F3EF}.ac{text-align:right;white-space:nowrap}
+.ib{width:34px;height:34px;border:0;border-radius:6px;background:none;cursor:pointer;font-size:1rem;line-height:1}.ib:hover{background:var(--paper)}
+#modal .box:has(#f){max-width:36rem}.g2{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-auto-flow:column;column-gap:14px}
+.fl{position:relative}.hn{font-weight:600;font-size:.8rem;color:var(--bad);margin-left:4px}.hn.g{color:var(--ok)}.up{text-transform:uppercase}.up::placeholder{text-transform:none}
+.sg{position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid #9AA39C;border-radius:6px;margin-top:2px;box-shadow:0 6px 16px rgba(0,0,0,.15);overflow:hidden}
+.sg div{padding:8px 12px;cursor:pointer}.sg div:hover,.sg div.on{background:var(--infobg)}
+.kp{display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer}.kp input{width:18px;height:18px}
+.okm{color:var(--ok);font-weight:600;margin-right:auto}
+@media(max-width:560px){.g2{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}.add kbd,.sw kbd{display:none}.sw{max-width:none}}
 </style>
 </head>
 <body>
@@ -124,43 +137,89 @@ const loadHtml=()=>loadErr?'⚠️ Não foi possível carregar as motos do Supab
 actions.retry=load;actions.close=closeModal;
 
 /* ---------- ENTREGA ---------- */
-function delivery(){let filter='todas',q='';
- $('#app').innerHTML='<header class="hd"><div class="wrap row"><div><h1>Controle de Entregas</h1><p class="mut">Motos para saída</p></div><div class="row g"><span id="dbinfo"></span><span id="conn" class="mut"></span><b id="cnt" class="big" aria-live="polite"></b></div></div></header>'
- +'<main class="wrap"><p id="load" class="mid"></p><div id="body" hidden><section id="stats" class="stats" aria-label="Resumo"></section>'
- +'<div class="row bar"><input id="q" class="inp" type="search" placeholder="🔎 Pesquisar modelo, cor, chassi ou bateria" aria-label="Pesquisar"><div id="tabs" class="tabs" role="group" aria-label="Filtrar por status"></div><span id="shown" class="mut" aria-live="polite"></span><button class="btn pri add" data-a="new">+ Adicionar moto</button></div><div id="tbl"></div></div></main>';
+function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;const MAXR=400;
+ const H=new WeakMap(),hs=m=>{let h=H.get(m);if(h===undefined){h=(m.modelo+' '+m.cor+' '+m.chassi+' '+(m.codigo_bateria||'')).toLowerCase();H.set(m,h)}return h};
+ $('#app').innerHTML=`<header class="hd"><div class="wrap row"><div><h1>Controle de Entregas</h1><p class="mut sm">Motos para saída</p></div><div class="row g"><span id="conn" class="mut sm"></span><b id="cnt" class="big" aria-live="polite"></b></div></div></header>
+<main class="wrap"><p id="load" class="mid"></p><div id="body" hidden><section id="stats" class="stats" aria-label="Resumo"></section>
+<div class="row bar"><div class="sw"><input id="q" class="inp" type="search" placeholder="Buscar modelo, cor, chassi ou bateria" aria-label="Pesquisar" autocomplete="off"><kbd>Ctrl K</kbd></div><div id="tabs" class="tabs" role="group" aria-label="Filtrar por status"></div><span id="shown" class="mut sm" aria-live="polite"></span><button class="btn pri add" data-a="new">＋ Adicionar moto <kbd>Ctrl+Enter</kbd></button></div><div id="tbl"></div></div></main>`;
  setConn(conn);
- $('#q').oninput=e=>{q=e.target.value.trim().toLowerCase();hooks.render()};
+ const qi=$('#q');
+ qi.oninput=e=>{q=e.target.value.trim().toLowerCase();cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>hooks.render())};
+ qi.onkeydown=e=>{if(e.key==='Escape'&&qi.value){qi.value=q='';hooks.render();e.stopPropagation()}};
+ addEventListener('keydown',e=>{const mod=e.ctrlKey||e.metaKey;
+  if(mod&&e.key.toLowerCase()==='k'){e.preventDefault();closeModal();qi.focus();qi.select()}
+  else if(e.altKey&&/^Digit[123]$/.test(e.code)){e.preventDefault();filter=['todas','pend','ativ'][e.code[5]-1];hooks.render()}
+  else if(mod&&e.key==='Enter'&&$('#modal').hidden&&loaded){e.preventDefault();form()}});
  actions.f=id=>{filter=id;hooks.render()};
  actions.new=()=>form();actions.edit=id=>form(motos.find(m=>m.id===id));
  actions.del=id=>{const m=motos.find(x=>x.id===id);if(!m)return;
   openModal('<h2>Remover moto</h2>'+(m.codigo_bateria?'<p class="warn">⚠️ Esta moto já possui uma bateria registrada ('+esc(m.codigo_bateria)+').<br>Tem certeza de que deseja removê-la?</p>':'')
   +'<p><b>Deseja realmente remover esta moto?</b></p><p class="mut">'+esc(m.modelo)+' · '+esc(m.cor)+' · chassi '+esc(m.chassi)+'</p><p class="mut" style="margin-top:8px">Esta ação removerá a moto da lista de entrega e da lista da montagem.</p><p id="fe" class="err" role="alert" hidden></p>'
-  +'<div class="row end"><button class="btn" data-a="close">Cancelar</button><button id="dok" class="btn dng" data-a="delok" data-id="'+m.id+'">Remover</button></div>')};
+  +'<div class="row end"><button class="btn" data-a="close">Cancelar</button><button id="dok" class="btn dng" data-a="delok" data-id="'+m.id+'">Remover</button></div>');$('#dok').focus()};
  actions.delok=async(id,b)=>{if(b.disabled)return;b.disabled=true;b.textContent='Removendo...';
   try{await del(id);drop(id);closeModal();toast('Moto removida com sucesso.')}catch(e){const f=$('#fe');f.textContent='⚠️ '+fail(e);f.hidden=false;b.disabled=false;b.textContent='Remover'}};
  hooks.onActivated=m=>toast('✅ Moto ativada',m.modelo+' — '+m.chassi+' · 🔋 '+m.codigo_bateria);
  hooks.render=()=>{$('#load').hidden=loaded;$('#body').hidden=!loaded;if(!loaded){$('#load').innerHTML=loadHtml();return}
   const n=motos.length,a=motos.filter(m=>m.status==='ativada').length,p=n-a,pct=n?Math.round(a/n*100):0;
   $('#cnt').textContent=pl(n);
-  $('#stats').innerHTML='<div><b>'+n+'</b><span class="mut">Total</span></div><div><b class="okc">'+a+'</b><span class="mut">Ativadas</span></div><div><b style="color:var(--pend)">'+p+'</b><span class="mut">Aguardando bateria</span></div><div><b>'+pct+'%</b><div class="pb" role="progressbar" aria-valuenow="'+pct+'" aria-valuemin="0" aria-valuemax="100" aria-label="Progresso"><i style="width:'+pct+'%"></i></div><span class="mut">Progresso</span></div>';
-  $('#tabs').innerHTML=[['todas','Todas',n],['pend','Aguardando bateria',p],['ativ','Ativadas',a]].map(t=>'<button data-a="f" data-id="'+t[0]+'" aria-pressed="'+(filter===t[0])+'">'+t[1]+' <span style="opacity:.7">'+t[2]+'</span></button>').join('');
-  const rows=motos.filter(m=>(filter==='todas'||(filter==='pend'?m.status!=='ativada':m.status==='ativada'))&&(!q||[m.modelo,m.cor,m.chassi,m.codigo_bateria||''].some(v=>v.toLowerCase().includes(q))));
+  $('#stats').innerHTML=`<div><b>${n}</b><span class="mut">Total</span></div><div><b class="okc">${a}</b><span class="mut">Ativadas</span></div><div><b style="color:var(--pend)">${p}</b><span class="mut">Aguardando bateria</span></div><div><b>${pct}%</b><span class="mut">Progresso</span><div class="pb" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progresso"><i style="width:${pct}%"></i></div></div>`;
+  $('#tabs').innerHTML=[['todas','Todas',n],['pend','🟡 Aguardando bateria',p],['ativ','🟢 Ativadas',a]].map((t,i)=>`<button data-a="f" data-id="${t[0]}" title="Alt+${i+1}" aria-pressed="${filter===t[0]}">${t[1]} <span style="opacity:.7">${t[2]}</span></button>`).join('');
+  const rows=motos.filter(m=>(filter==='todas'||(filter==='pend'?m.status!=='ativada':m.status==='ativada'))&&(!q||hs(m).includes(q)));
   $('#shown').textContent=rows.length===n?pl(n):rows.length+' de '+n;
-  if(!n){$('#tbl').innerHTML='<div class="empty"><p><b>Nenhuma moto cadastrada.</b></p><p class="mut">Clique em "+ Adicionar moto" para começar.</p></div>';return}
+  if(!n){$('#tbl').innerHTML='<div class="empty"><p><b>Nenhuma moto cadastrada.</b></p><p class="mut">Pressione Ctrl+Enter para começar.</p></div>';return}
   if(!rows.length){$('#tbl').innerHTML='<p class="mid">Nenhuma moto encontrada com esses filtros.</p>';return}
-  const pos=new Map(motos.map((m,i)=>[m.id,i+1]));
+  const pos=new Map(motos.map((m,i)=>[m.id,i+1])),vis=rows.length>MAXR?rows.slice(-MAXR):rows;
   $('#tbl').innerHTML='<div class="tw"><table><thead><tr><th>#</th><th>Modelo</th><th>Cor</th><th>Chassi</th><th>Código da bateria</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead><tbody>'
-  +rows.map(m=>{const d=m.status==='ativada',l=esc(m.modelo+' chassi '+m.chassi);
-   return '<tr class="'+(d?'d':'')+'"><td>'+String(pos.get(m.id)).padStart(2,'0')+'</td><td><b>'+esc(m.modelo)+'</b></td><td>'+esc(m.cor)+'</td><td class="mono">'+esc(m.chassi)+'</td><td>'+bat(m.codigo_bateria,1)+'</td><td><span class="bd '+(d?'d':'')+'">'+(d?'✅ Ativada':'⚠️ Aguardando bateria')+'</span></td><td style="text-align:right;white-space:nowrap"><button class="lk" data-a="edit" data-id="'+m.id+'" aria-label="Editar '+l+'">Editar</button><button class="lk x" data-a="del" data-id="'+m.id+'" aria-label="Excluir '+l+'">Excluir</button></td></tr>'}).join('')+'</tbody></table></div>'};
+  +vis.map(m=>{const d=m.status==='ativada',l=esc(m.modelo+' chassi '+m.chassi);
+   return `<tr class="${d?'d':''}"><td>${String(pos.get(m.id)).padStart(2,'0')}</td><td><b>${esc(m.modelo)}</b></td><td>${esc(m.cor)}</td><td class="mono">${esc(m.chassi)}</td><td>${bat(m.codigo_bateria,1)}</td><td><span class="bd ${d?'d':''}">${d?'🟢 Ativada':'🟡 Aguardando bateria'}</span></td><td class="ac"><button class="ib" data-a="edit" data-id="${m.id}" title="Editar" aria-label="Editar ${l}">✏️</button><button class="ib" data-a="del" data-id="${m.id}" title="Excluir" aria-label="Excluir ${l}">🗑️</button></td></tr>`}).join('')+'</tbody></table></div>'
+  +(rows.length>MAXR?`<p class="mut sm" style="margin-top:8px">Mostrando as ${MAXR} mais recentes de ${rows.length}. Use a busca (Ctrl K) para encontrar as demais.</p>`:'')};
+ /* autocomplete (setas ↑↓, Enter, mouse; só aparece ao digitar) */
+ const sugg=(k,v)=>{const c=new Map();motos.forEach(m=>c.set(m[k],(c.get(m[k])||0)+1));
+  return [...c].filter(([x])=>{x=x.toLowerCase();return x.includes(v)&&x!==v}).sort((a,b)=>(b[0].toLowerCase().startsWith(v)-a[0].toLowerCase().startsWith(v))||b[1]-a[1]).slice(0,6).map(a=>a[0])};
+ function ac(i,k,go){const b=i.nextElementSibling;let L=[],s=-1;
+  const draw=()=>{b.hidden=!L.length;b.innerHTML=L.map((x,j)=>`<div class="${j===s?'on':''}" data-v="${esc(x)}">${esc(x)}</div>`).join('')},pick=x=>{i.value=x;L=[];s=-1;draw();go(i)};
+  i.addEventListener('input',()=>{const v=i.value.trim().toLowerCase();L=v?sugg(k,v):[];s=-1;draw()});
+  i.addEventListener('blur',()=>{L=[];draw()});
+  b.addEventListener('mousedown',e=>{const d=e.target.closest('[data-v]');if(d){e.preventDefault();pick(d.dataset.v)}});
+  i.addEventListener('keydown',e=>{if(!L.length)return;
+   if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();s=e.key==='ArrowDown'?Math.min(s+1,L.length-1):Math.max(s-1,-1);draw()}
+   else if(e.key==='Enter'&&s>=0&&!e.ctrlKey&&!e.metaKey){e.preventDefault();e.stopPropagation();pick(L[s])}
+   else if(e.key==='Escape'){e.stopPropagation();L=[];draw()}})}
  function form(m){
-  openModal('<h2>'+(m?'Editar moto':'Adicionar moto')+'</h2><form id="f" novalidate><label>Modelo<input class="inp" name="modelo" value="'+esc(m&&m.modelo)+'" placeholder="Ex.: CG 160 FAN" autocomplete="off"></label><label>Cor<input class="inp" name="cor" value="'+esc(m&&m.cor)+'" placeholder="Ex.: Vermelha" autocomplete="off"></label><label>6 últimos dígitos do chassi<input class="inp mono" name="chassi" value="'+esc(m&&m.chassi)+'" inputmode="numeric" placeholder="123456" autocomplete="off"></label><p id="fe" class="err" role="alert" hidden></p><div class="row end"><button type="button" class="btn" data-a="close">Cancelar</button><button id="fs" class="btn pri">'+(m?'Salvar alterações':'Adicionar moto')+'</button></div></form>');
-  const f=$('#f'),fe=$('#fe'),fs=$('#fs'),txt=fs.textContent,show=t=>{fe.textContent='⚠️ '+t;fe.hidden=false};
-  f.chassi.oninput=()=>{if(f.chassi.value.trim().length>6)show(MSG.over);else fe.hidden=true};
-  f.onsubmit=async e=>{e.preventDefault();if(fs.disabled)return;const v={modelo:f.modelo.value.trim(),cor:f.cor.value.trim(),chassi:f.chassi.value.trim()};
-   const er=!v.modelo?'Informe o modelo.':!v.cor?'Informe a cor.':vChassi(v.chassi);if(er)return show(er);
-   fs.disabled=true;fs.textContent='Salvando...';
-   try{const r=m?await edit(m.id,v):await add(v);upsert(r,false);closeModal();toast(m?'Moto atualizada com sucesso.':'Moto adicionada com sucesso.')}
-   catch(x){show(fail(x));fs.disabled=false;fs.textContent=txt}}}
+  const v=k=>esc(m&&m[k]);
+  openModal(`<div class="row" style="flex-wrap:nowrap"><h2 style="margin:0">${m?'Editar moto':'🏍️ Adicionar moto'}</h2><button type="button" class="ib" data-a="close" title="Fechar (Esc)" aria-label="Fechar">✕</button></div><form id="f" novalidate><div class="g2">
+<div class="fl"><label for="fm">Modelo</label><input id="fm" class="inp" name="modelo" value="${v('modelo')}" placeholder="Ex.: Fan 160" autocomplete="off"><div class="sg" hidden></div></div>
+<div class="fl"><label for="fc">Cor</label><input id="fc" class="inp" name="cor" value="${v('cor')}" placeholder="Ex.: Vermelha" autocomplete="off"><div class="sg" hidden></div></div>
+<div class="fl"><label for="fh">Chassi · 6 últimos dígitos <span class="hn" id="hc"></span></label><input id="fh" class="inp mono" name="chassi" value="${v('chassi')}" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="off"></div>
+<div class="fl" ${m?'hidden':''}><label for="fb">Código da bateria <span class="hn" id="hb"></span></label><input id="fb" class="inp mono up" name="bateria" placeholder="Opcional" autocomplete="off" autocapitalize="characters" spellcheck="false"></div></div>
+<p id="fe" class="err" role="alert" hidden></p>
+<label class="kp" ${m?'hidden':''}><input type="checkbox" id="kp" ${keepOn?'checked':''}> Manter modelo e cor</label>
+<div class="row end"><span id="ok" class="okm" aria-live="polite"></span><button type="button" class="btn" data-a="close">Cancelar</button><button id="fs" class="btn pri">${m?'Salvar alterações':'＋ Adicionar moto'} <kbd>Ctrl+Enter</kbd></button></div></form>`);
+  const f=$('#f'),fe=$('#fe'),fs=$('#fs'),kp=$('#kp'),ins=[f.modelo,f.cor,f.chassi,...(m?[]:[f.bateria])];
+  const show=t=>{fe.textContent='⚠️ '+t;fe.hidden=false},next=i=>{const n=ins[ins.indexOf(i)+1];if(n){n.focus();n.select()}};
+  const hint=()=>{const c=f.chassi.value,b=f.bateria.value.trim(),hc=$('#hc'),hb=$('#hb');hc.textContent=c?(c.length===6?'✓':c.length+'/6'):'';hc.className='hn'+(c.length===6?' g':'');
+   hb.textContent=b.length<3?'':vBat(b)?'✗ inválido':'✓ Código válido';hb.className='hn'+(b.length>=3&&!vBat(b)?' g':'')};
+  f.chassi.oninput=e=>{const c=f.chassi.value.replace(/\D/g,'').slice(0,6);if(c!==f.chassi.value)f.chassi.value=c;fe.hidden=true;hint();
+   if(c.length===6&&e.inputType&&e.inputType.startsWith('insert'))next(f.chassi)};
+  f.bateria.oninput=()=>{fe.hidden=true;hint()};f.modelo.oninput=f.cor.oninput=()=>{fe.hidden=true};
+  ac(f.modelo,'modelo',next);ac(f.cor,'cor',next);
+  kp.onchange=()=>{keepOn=kp.checked;kp.dataset.u=1};
+  f.onkeydown=e=>{if(e.key!=='Enter')return;const t=e.target,mod=e.ctrlKey||e.metaKey;if(!mod&&!ins.includes(t))return;
+   e.preventDefault();if(mod||t===ins[ins.length-1])f.requestSubmit();else next(t)};
+  hint();(keepOn&&!m?f.chassi:f.modelo).focus();
+  f.onsubmit=async e=>{e.preventDefault();if(fs.disabled)return;
+   const d={modelo:f.modelo.value.trim(),cor:f.cor.value.trim(),chassi:f.chassi.value.trim()},code=m?'':f.bateria.value.trim().toUpperCase(),ce=vChassi(d.chassi);
+   const er=!d.modelo?'Informe o modelo.':!d.cor?'Informe a cor.':ce||(code&&vBat(code));
+   if(er){show(er);(!d.modelo?f.modelo:!d.cor?f.cor:ce?f.chassi:f.bateria).focus();return}
+   if(m){fs.disabled=true;fs.textContent='Salvando...';try{const r=await edit(m.id,d);upsert(r,false);closeModal();toast('Moto atualizada com sucesso.')}catch(x){show(fail(x));fs.disabled=false;fs.textContent='Salvar alterações'}return}
+   /* fluxo contínuo: limpa e foca já; o salvamento segue em segundo plano */
+   const sig=(d.modelo+'|'+d.cor).toLowerCase();if(sig===last&&!kp.dataset.u)keepOn=kp.checked=true;last=sig;
+   fe.hidden=true;clearTimeout(okT);const o=$('#ok');o.textContent='✓ Moto adicionada';okT=setTimeout(()=>{o.textContent=''},1500);
+   if(!keepOn)f.modelo.value=f.cor.value='';f.chassi.value=f.bateria.value='';hint();(keepOn?f.chassi:f.modelo).focus();
+   try{let r=await add(d);upsert(r,false);
+    if(code){try{r=await activate(r.id,code);upsert(r,false)}catch(y){toast('⚠️ Moto salva, mas a bateria não foi registrada',d.chassi+': '+fail(y),'er')}}}
+   catch(x){toast('⚠️ Moto NÃO foi salva: '+d.chassi,fail(x),'er');
+    if($('#f')===f&&!f.chassi.value){f.modelo.value=d.modelo;f.cor.value=d.cor;f.chassi.value=d.chassi;f.bateria.value=code;hint();show(fail(x));f.chassi.focus()}}}}
  connect()}
 
 /* ---------- Início / Config ---------- */
