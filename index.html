@@ -114,7 +114,8 @@ $('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal
 addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 const actions={};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&actions[b.dataset.a])actions[b.dataset.a](b.dataset.id,b)});
-const bat=(c,l)=>c?'<span class="bat'+(l?' lg':'')+'"><i aria-hidden="true">🔋</i><span class="mono">'+esc(c)+'</span></span>':'<span class="mut">Aguardando</span>';
+const fmtBat=c=>/^\d{6}$/.test(c)?c.slice(0,2)+'/'+c.slice(2,4)+'/'+c.slice(4):c;
+const bat=(c,l)=>c?'<span class="bat'+(l?' lg':'')+'"><i aria-hidden="true">🔋</i><span class="mono">'+esc(fmtBat(c))+'</span></span>':'<span class="mut">Aguardando</span>';
 
 /* ---------- dados + realtime ---------- */
 let sb,ch,motos=[],loaded=false,loadErr=false,conn='connecting';const removed=new Set(),hooks={render(){},onActivated:null};
@@ -186,7 +187,7 @@ function delivery(){let filter='todas',q='',raf=0,keepOn=false,last='',okT=0;con
   +'<div class="row end"><button class="btn" data-a="close">Cancelar</button><button id="dok" class="btn dng" data-a="delok" data-id="'+m.id+'">Remover</button></div>');$('#dok').focus()};
  actions.delok=async(id,b)=>{if(b.disabled)return;b.disabled=true;b.textContent='Removendo...';
   try{await del(id);drop(id);closeModal();toast('Moto removida com sucesso.')}catch(e){const f=$('#fe');f.textContent='⚠️ '+fail(e);f.hidden=false;b.disabled=false;b.textContent='Remover'}};
- hooks.onActivated=m=>toast('✅ Moto ativada',m.modelo+' — '+m.chassi+' · 🔋 '+m.codigo_bateria);
+ hooks.onActivated=m=>toast('✅ Moto ativada',m.modelo+' — '+m.chassi+' · 🔋 '+fmtBat(m.codigo_bateria));
  hooks.render=()=>{$('#load').hidden=loaded;$('#body').hidden=!loaded;if(!loaded){$('#load').innerHTML=loadHtml();return}
   const dm=motos.filter(m=>m.data===day),n=dm.length,a=dm.filter(m=>m.status==='ativada').length,p=n-a,pct=n?Math.round(a/n*100):0;
   $('#cnt').textContent=pl(n);$('#dl').textContent=lbl(day);$('#dtag').textContent=dtg(day);
